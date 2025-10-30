@@ -1,10 +1,34 @@
 // Allowed attendance locations (in production, fetch from database)
-export const ALLOWED_LOCATIONS = [
-  { name: "Building A", lat: 40.7128, lng: -74.006, radius: 100 }, // 100 meters radius
+export interface GeofenceSetting {
+  name: string
+  lat: number
+  lng: number
+  radius: number
+}
+
+// Default geofence settings
+const DEFAULT_LOCATIONS: GeofenceSetting[] = [
+  { name: "Building A", lat: 40.7128, lng: -74.006, radius: 100 },
   { name: "Building B", lat: 40.758, lng: -73.9855, radius: 100 },
   { name: "Campus Center", lat: 40.7489, lng: -73.968, radius: 150 },
-  { name: "Greater Noida New Campus", lat: 28.4595, lng: 77.5362, radius: 200 }, // 200 meters radius
+  { name: "Greater Noida New Campus", lat: 28.4595, lng: 77.5362, radius: 200 },
 ]
+
+export const ALLOWED_LOCATIONS = DEFAULT_LOCATIONS
+
+// Get geofence settings from localStorage or use defaults
+export function getAllowedLocations(): GeofenceSetting[] {
+  if (typeof window === "undefined") return DEFAULT_LOCATIONS
+  const stored = localStorage.getItem("geofenceSettings")
+  return stored ? JSON.parse(stored) : DEFAULT_LOCATIONS
+}
+
+// Save geofence settings to localStorage
+export function saveGeofenceSettings(settings: GeofenceSetting[]): void {
+  if (typeof window !== "undefined") {
+    localStorage.setItem("geofenceSettings", JSON.stringify(settings))
+  }
+}
 
 // Calculate distance between two coordinates using Haversine formula
 export function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -23,7 +47,8 @@ export function isWithinGeofence(
   userLat: number,
   userLng: number,
 ): { isValid: boolean; location?: string; distance?: number } {
-  for (const location of ALLOWED_LOCATIONS) {
+  const locations = getAllowedLocations()
+  for (const location of locations) {
     const distance = calculateDistance(userLat, userLng, location.lat, location.lng)
     if (distance <= location.radius) {
       return { isValid: true, location: location.name, distance: Math.round(distance) }
@@ -34,10 +59,11 @@ export function isWithinGeofence(
 
 // Get nearest allowed location
 export function getNearestLocation(userLat: number, userLng: number) {
-  let nearest = ALLOWED_LOCATIONS[0]
+  const locations = getAllowedLocations()
+  let nearest = locations[0]
   let minDistance = calculateDistance(userLat, userLng, nearest.lat, nearest.lng)
 
-  for (const location of ALLOWED_LOCATIONS) {
+  for (const location of locations) {
     const distance = calculateDistance(userLat, userLng, location.lat, location.lng)
     if (distance < minDistance) {
       minDistance = distance

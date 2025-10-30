@@ -6,10 +6,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { LogOut, Plus, Trash2, CheckCircle, XCircle, Users, BarChart3, TrendingUp } from "lucide-react"
+import { LogOut, Plus, Trash2, CheckCircle, XCircle, Users, BarChart3, TrendingUp, Settings } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { AnalyticsCharts } from "@/components/analytics-charts"
 import { AnalyticsStats } from "@/components/analytics-stats"
+import { getAllowedLocations, saveGeofenceSettings, type GeofenceSetting } from "@/lib/geolocation"
 
 interface Student {
   id: string
@@ -32,39 +33,42 @@ interface AttendanceRecord {
 
 export default function AdminDashboard() {
   const [students, setStudents] = useState<Student[]>([
-    { id: "1", name: "John Doe", email: "john@example.com", status: "approved", enrollmentDate: "2024-01-15" },
-    { id: "2", name: "Jane Smith", email: "jane@example.com", status: "pending", enrollmentDate: "2024-10-25" },
-    { id: "3", name: "Bob Johnson", email: "bob@example.com", status: "approved", enrollmentDate: "2024-02-10" },
+    { id: "1", name: "Rajesh Kumar", email: "rajesh@example.com", status: "approved", enrollmentDate: "2024-01-15" },
+    { id: "2", name: "Priya Sharma", email: "priya@example.com", status: "pending", enrollmentDate: "2024-10-25" },
+    { id: "3", name: "Amit Patel", email: "amit@example.com", status: "approved", enrollmentDate: "2024-02-10" },
+    { id: "4", name: "Neha Singh", email: "neha@example.com", status: "approved", enrollmentDate: "2024-03-05" },
+    { id: "5", name: "Vikram Gupta", email: "vikram@example.com", status: "pending", enrollmentDate: "2024-10-28" },
+    { id: "6", name: "Anjali Verma", email: "anjali@example.com", status: "approved", enrollmentDate: "2024-04-12" },
   ])
 
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([
     {
       id: "1",
       studentId: "1",
-      studentName: "John Doe",
+      studentName: "Rajesh Kumar",
       date: "2024-10-30",
       time: "09:15",
-      location: "Building A",
+      location: "Greater Noida New Campus",
       faceMatch: 98,
       status: "approved",
     },
     {
       id: "2",
       studentId: "2",
-      studentName: "Jane Smith",
+      studentName: "Priya Sharma",
       date: "2024-10-30",
       time: "09:45",
-      location: "Building A",
+      location: "Greater Noida New Campus",
       faceMatch: 95,
       status: "pending",
     },
     {
       id: "3",
       studentId: "3",
-      studentName: "Bob Johnson",
+      studentName: "Amit Patel",
       date: "2024-10-30",
       time: "10:00",
-      location: "Building B",
+      location: "Greater Noida New Campus",
       faceMatch: 92,
       status: "approved",
     },
@@ -73,6 +77,10 @@ export default function AdminDashboard() {
   const [newStudent, setNewStudent] = useState({ name: "", email: "" })
   const [user, setUser] = useState<any>(null)
 
+  const [geofenceSettings, setGeofenceSettings] = useState<GeofenceSetting[]>([])
+  const [editingLocation, setEditingLocation] = useState<GeofenceSetting | null>(null)
+  const [newLocation, setNewLocation] = useState({ name: "", lat: "", lng: "", radius: "" })
+
   useEffect(() => {
     const userData = localStorage.getItem("user")
     if (!userData) {
@@ -80,6 +88,8 @@ export default function AdminDashboard() {
       return
     }
     setUser(JSON.parse(userData))
+
+    setGeofenceSettings(getAllowedLocations())
   }, [])
 
   const handleAddStudent = () => {
@@ -116,6 +126,56 @@ export default function AdminDashboard() {
     setAttendance(attendance.map((a) => (a.id === id ? { ...a, status: "rejected" } : a)))
   }
 
+  const handleAddLocation = () => {
+    if (newLocation.name && newLocation.lat && newLocation.lng && newLocation.radius) {
+      const location: GeofenceSetting = {
+        name: newLocation.name,
+        lat: Number.parseFloat(newLocation.lat),
+        lng: Number.parseFloat(newLocation.lng),
+        radius: Number.parseFloat(newLocation.radius),
+      }
+      const updated = [...geofenceSettings, location]
+      setGeofenceSettings(updated)
+      saveGeofenceSettings(updated)
+      setNewLocation({ name: "", lat: "", lng: "", radius: "" })
+    }
+  }
+
+  const handleUpdateLocation = () => {
+    if (editingLocation && newLocation.name && newLocation.lat && newLocation.lng && newLocation.radius) {
+      const updated = geofenceSettings.map((loc) =>
+        loc.name === editingLocation.name
+          ? {
+              name: newLocation.name,
+              lat: Number.parseFloat(newLocation.lat),
+              lng: Number.parseFloat(newLocation.lng),
+              radius: Number.parseFloat(newLocation.radius),
+            }
+          : loc,
+      )
+      setGeofenceSettings(updated)
+      saveGeofenceSettings(updated)
+      setEditingLocation(null)
+      setNewLocation({ name: "", lat: "", lng: "", radius: "" })
+    }
+  }
+
+  const handleDeleteLocation = (name: string) => {
+    const updated = geofenceSettings.filter((loc) => loc.name !== name)
+    setGeofenceSettings(updated)
+    saveGeofenceSettings(updated)
+  }
+
+  const handleEditLocation = (location: GeofenceSetting) => {
+    setEditingLocation(location)
+    setNewLocation({
+      name: location.name,
+      lat: location.lat.toString(),
+      lng: location.lng.toString(),
+      radius: location.radius.toString(),
+    })
+  }
+
   const handleLogout = () => {
     localStorage.removeItem("token")
     localStorage.removeItem("user")
@@ -129,7 +189,6 @@ export default function AdminDashboard() {
   const averageFaceMatch = Math.round(attendance.reduce((sum, a) => sum + a.faceMatch, 0) / attendance.length)
   const attendanceRate = totalAttendance > 0 ? Math.round((approvedAttendance / totalAttendance) * 100) : 0
 
-  // Mock data for charts
   const attendanceData = [
     { date: "Oct 24", count: 45 },
     { date: "Oct 25", count: 52 },
@@ -195,6 +254,10 @@ export default function AdminDashboard() {
               <BarChart3 className="w-4 h-4" />
               Attendance Records
             </TabsTrigger>
+            <TabsTrigger value="settings" className="flex items-center gap-2">
+              <Settings className="w-4 h-4" />
+              Geolocation Settings
+            </TabsTrigger>
           </TabsList>
 
           {/* Analytics Tab */}
@@ -219,7 +282,7 @@ export default function AdminDashboard() {
                     <Label htmlFor="student-name">Full Name</Label>
                     <Input
                       id="student-name"
-                      placeholder="John Doe"
+                      placeholder="Rajesh Kumar"
                       value={newStudent.name}
                       onChange={(e) => setNewStudent({ ...newStudent, name: e.target.value })}
                     />
@@ -229,7 +292,7 @@ export default function AdminDashboard() {
                     <Input
                       id="student-email"
                       type="email"
-                      placeholder="john@example.com"
+                      placeholder="rajesh@example.com"
                       value={newStudent.email}
                       onChange={(e) => setNewStudent({ ...newStudent, email: e.target.value })}
                     />
@@ -361,6 +424,116 @@ export default function AdminDashboard() {
                                 </Button>
                               </>
                             )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="settings" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Geolocation Settings</CardTitle>
+                <CardDescription>Configure attendance locations and geofence radius</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="location-name">Location Name</Label>
+                    <Input
+                      id="location-name"
+                      placeholder="e.g., Greater Noida New Campus"
+                      value={newLocation.name}
+                      onChange={(e) => setNewLocation({ ...newLocation, name: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="location-lat">Latitude</Label>
+                    <Input
+                      id="location-lat"
+                      type="number"
+                      step="0.0001"
+                      placeholder="28.4595"
+                      value={newLocation.lat}
+                      onChange={(e) => setNewLocation({ ...newLocation, lat: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="location-lng">Longitude</Label>
+                    <Input
+                      id="location-lng"
+                      type="number"
+                      step="0.0001"
+                      placeholder="77.5362"
+                      value={newLocation.lng}
+                      onChange={(e) => setNewLocation({ ...newLocation, lng: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="location-radius">Geofence Radius (meters)</Label>
+                    <Input
+                      id="location-radius"
+                      type="number"
+                      placeholder="200"
+                      value={newLocation.radius}
+                      onChange={(e) => setNewLocation({ ...newLocation, radius: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <Button onClick={editingLocation ? handleUpdateLocation : handleAddLocation} className="w-full">
+                  <Plus className="w-4 h-4 mr-2" />
+                  {editingLocation ? "Update Location" : "Add Location"}
+                </Button>
+                {editingLocation && (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setEditingLocation(null)
+                      setNewLocation({ name: "", lat: "", lng: "", radius: "" })
+                    }}
+                    className="w-full"
+                  >
+                    Cancel
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Active Locations</CardTitle>
+                <CardDescription>Manage attendance geofence locations</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Location Name</TableHead>
+                        <TableHead>Latitude</TableHead>
+                        <TableHead>Longitude</TableHead>
+                        <TableHead>Radius (m)</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {geofenceSettings.map((location) => (
+                        <TableRow key={location.name}>
+                          <TableCell className="font-medium">{location.name}</TableCell>
+                          <TableCell>{location.lat.toFixed(4)}</TableCell>
+                          <TableCell>{location.lng.toFixed(4)}</TableCell>
+                          <TableCell>{location.radius}</TableCell>
+                          <TableCell className="space-x-2">
+                            <Button size="sm" variant="outline" onClick={() => handleEditLocation(location)}>
+                              Edit
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => handleDeleteLocation(location.name)}>
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
                           </TableCell>
                         </TableRow>
                       ))}
