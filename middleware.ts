@@ -4,7 +4,11 @@ import { verifyToken } from "@/lib/jwt"
 export function middleware(request: NextRequest) {
   const token = request.cookies.get("token")?.value
 
-  if (request.nextUrl.pathname.startsWith("/admin") || request.nextUrl.pathname.startsWith("/student")) {
+  if (
+    request.nextUrl.pathname.startsWith("/admin") ||
+    request.nextUrl.pathname.startsWith("/student") ||
+    request.nextUrl.pathname.startsWith("/teacher")
+  ) {
     if (!token) {
       return NextResponse.redirect(new URL("/", request.url))
     }
@@ -19,5 +23,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/student/:path*"],
+  matcher: ["/admin/:path*", "/student/:path*", "/teacher/:path*"],
 }

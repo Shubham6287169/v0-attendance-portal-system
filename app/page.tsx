@@ -44,6 +44,8 @@ export default function LoginPage() {
 
       if (data.user.role === "admin") {
         window.location.href = "/admin"
+      } else if (data.user.role === "teacher") {
+        window.location.href = "/teacher"
       } else {
         window.location.href = "/student"
       }
@@ -140,6 +142,7 @@ export default function LoginPage() {
                   <div className="text-sm text-muted-foreground text-center">
                     <p>Demo: admin@example.com / password123</p>
                     <p>Demo: student@example.com / password123</p>
+                    <p>Demo: teacher@example.com / password123</p>
                   </div>
                 </form>
               </TabsContent>
@@ -194,6 +197,7 @@ export default function LoginPage() {
                       className="w-full px-3 py-2 bg-input border border-border rounded-md text-foreground"
                     >
                       <option value="student">Student</option>
+                      <option value="teacher">Teacher</option>
                       <option value="admin">Admin</option>
                     </select>
                   </div>

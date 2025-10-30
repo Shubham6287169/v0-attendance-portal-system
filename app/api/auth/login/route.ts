@@ -5,6 +5,7 @@ import { createToken } from "@/lib/jwt"
 const users = [
   { id: "1", email: "admin@example.com", password: "password123", name: "Admin User", role: "admin" },
   { id: "2", email: "student@example.com", password: "password123", name: "John Doe", role: "student" },
+  { id: "3", email: "teacher@example.com", password: "password123", name: "Jane Smith", role: "teacher" },
 ]
 
 export async function POST(request: NextRequest) {
