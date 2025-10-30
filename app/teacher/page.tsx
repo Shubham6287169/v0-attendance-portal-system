@@ -6,7 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
-import { LogOut, Clock, CheckCircle, AlertCircle } from "lucide-react"
+import { LogOut, Clock, CheckCircle, AlertCircle, MapPin } from "lucide-react"
+import { ALLOWED_LOCATIONS } from "@/lib/geolocation"
 
 interface Student {
   id: string
@@ -29,6 +30,7 @@ export default function TeacherDashboard() {
   const [students, setStudents] = useState<Student[]>([])
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([])
   const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set())
+  const [selectedLocation, setSelectedLocation] = useState<string>(ALLOWED_LOCATIONS[0].name)
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState("")
   const [user, setUser] = useState<any>(null)
@@ -62,7 +64,7 @@ export default function TeacherDashboard() {
         studentName: "Alice Johnson",
         timestamp: new Date(Date.now() - 3600000).toISOString(),
         faceConfidence: 0.95,
-        location: "Classroom A",
+        location: "Greater Noida New Campus",
         status: "approved",
       },
       {
@@ -70,7 +72,7 @@ export default function TeacherDashboard() {
         studentName: "Bob Smith",
         timestamp: new Date(Date.now() - 7200000).toISOString(),
         faceConfidence: 0.88,
-        location: "Classroom A",
+        location: "Building A",
         status: "approved",
       },
     ]
@@ -100,6 +102,7 @@ export default function TeacherDashboard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           studentIds: Array.from(selectedStudents),
+          location: selectedLocation,
           timestamp: new Date().toISOString(),
         }),
       })
@@ -170,6 +173,27 @@ export default function TeacherDashboard() {
                 <CardDescription>Select students and mark their attendance for today</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium flex items-center gap-2">
+                    <MapPin className="w-4 h-4" />
+                    Select Campus Location
+                  </label>
+                  <select
+                    value={selectedLocation}
+                    onChange={(e) => setSelectedLocation(e.target.value)}
+                    className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
+                  >
+                    {ALLOWED_LOCATIONS.map((location) => (
+                      <option key={location.name} value={location.name}>
+                        {location.name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-muted-foreground">
+                    Current selection: <span className="font-medium">{selectedLocation}</span>
+                  </p>
+                </div>
+
                 <div className="space-y-3">
                   {students.map((student) => (
                     <div
@@ -232,14 +256,17 @@ export default function TeacherDashboard() {
                             {record.status}
                           </Badge>
                         </div>
-                        <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div className="grid grid-cols-3 gap-4 text-sm">
                           <div>
                             <p className="text-muted-foreground">Face Confidence</p>
                             <p className="font-medium">{(record.faceConfidence * 100).toFixed(1)}%</p>
                           </div>
                           <div>
                             <p className="text-muted-foreground">Location</p>
-                            <p className="font-medium">{record.location}</p>
+                            <p className="font-medium flex items-center gap-1">
+                              <MapPin className="w-3 h-3" />
+                              {record.location}
+                            </p>
                           </div>
                         </div>
                       </div>

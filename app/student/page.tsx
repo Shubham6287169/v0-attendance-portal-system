@@ -4,10 +4,11 @@ import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { LogOut, Camera, Clock, CheckCircle, AlertCircle } from "lucide-react"
+import { LogOut, Camera, Clock, CheckCircle, AlertCircle, Fingerprint } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { FaceRecognition } from "@/components/face-recognition"
+import { FaceEnrollment } from "@/components/face-enrollment"
 import { GeolocationTracker } from "@/components/geolocation-tracker"
 import { AttendanceConfirmation } from "@/components/attendance-confirmation"
 import { isWithinGeofence } from "@/lib/geolocation"
@@ -34,6 +35,8 @@ export default function StudentDashboard() {
   ])
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [faceEnrolled, setFaceEnrolled] = useState(false)
+  const [showEnrollment, setShowEnrollment] = useState(false)
 
   useEffect(() => {
     const userData = localStorage.getItem("user")
@@ -41,7 +44,16 @@ export default function StudentDashboard() {
       window.location.href = "/"
       return
     }
-    setUser(JSON.parse(userData))
+    const parsedUser = JSON.parse(userData)
+    setUser(parsedUser)
+
+    // Check if face is enrolled
+    const faceData = localStorage.getItem("face_descriptors")
+    if (faceData) {
+      const descriptors = JSON.parse(faceData)
+      const enrolled = descriptors.some((d: any) => d.studentId === parsedUser.id)
+      setFaceEnrolled(enrolled)
+    }
   }, [])
 
   useEffect(() => {
@@ -153,9 +165,28 @@ export default function StudentDashboard() {
           </Card>
         </div>
 
+        {/* Face Enrollment Alert */}
+        {!faceEnrolled && !showEnrollment && (
+          <Alert className="mb-6 border-secondary/50 bg-secondary/10">
+            <Fingerprint className="h-4 w-4" />
+            <AlertDescription>
+              You need to enroll your face first before marking attendance.{" "}
+              <Button variant="link" className="p-0 h-auto font-semibold" onClick={() => setShowEnrollment(true)}>
+                Enroll Now
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Tabs */}
-        <Tabs defaultValue="mark" className="space-y-4">
+        <Tabs defaultValue={showEnrollment ? "enroll" : "mark"} className="space-y-4">
           <TabsList>
+            {!faceEnrolled && (
+              <TabsTrigger value="enroll" className="flex items-center gap-2">
+                <Fingerprint className="w-4 h-4" />
+                Enroll Face
+              </TabsTrigger>
+            )}
             <TabsTrigger value="mark" className="flex items-center gap-2">
               <Camera className="w-4 h-4" />
               Mark Attendance
@@ -166,45 +197,72 @@ export default function StudentDashboard() {
             </TabsTrigger>
           </TabsList>
 
+          {/* Face Enrollment Tab */}
+          {!faceEnrolled && (
+            <TabsContent value="enroll" className="space-y-4">
+              <FaceEnrollment
+                studentId={user?.id}
+                onEnrollmentComplete={() => {
+                  setFaceEnrolled(true)
+                  setShowEnrollment(false)
+                  setMessage({ type: "success", text: "Face enrolled successfully!" })
+                }}
+              />
+            </TabsContent>
+          )}
+
           {/* Mark Attendance Tab */}
           <TabsContent value="mark" className="space-y-4">
-            {message && (
-              <Alert variant={message.type === "success" ? "default" : "destructive"}>
-                {message.type === "success" ? <CheckCircle className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
-                <AlertDescription>{message.text}</AlertDescription>
+            {!faceEnrolled ? (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>Please enroll your face first to mark attendance.</AlertDescription>
               </Alert>
+            ) : (
+              <>
+                {message && (
+                  <Alert variant={message.type === "success" ? "default" : "destructive"}>
+                    {message.type === "success" ? (
+                      <CheckCircle className="h-4 w-4" />
+                    ) : (
+                      <AlertCircle className="h-4 w-4" />
+                    )}
+                    <AlertDescription>{message.text}</AlertDescription>
+                  </Alert>
+                )}
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                  <div className="lg:col-span-2 space-y-4">
+                    <FaceRecognition isActive={cameraActive} onFaceDetected={setFaceMatch} studentId={user?.id} />
+                    <GeolocationTracker onLocationCaptured={setLocation} />
+                  </div>
+
+                  <div className="space-y-4">
+                    <Button
+                      onClick={() => setCameraActive(!cameraActive)}
+                      className="w-full h-12"
+                      variant={cameraActive ? "destructive" : "default"}
+                    >
+                      <Camera className="w-4 h-4 mr-2" />
+                      {cameraActive ? "Stop Camera" : "Start Camera"}
+                    </Button>
+
+                    <AttendanceConfirmation
+                      faceMatch={faceMatch}
+                      location={location}
+                      geofenceValid={geofenceValid}
+                      onConfirm={handleMarkAttendance}
+                      onCancel={() => {
+                        setCameraActive(false)
+                        setLocation(null)
+                        setFaceMatch(null)
+                      }}
+                      isLoading={isSubmitting}
+                    />
+                  </div>
+                </div>
+              </>
             )}
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              <div className="lg:col-span-2 space-y-4">
-                <FaceRecognition isActive={cameraActive} onFaceDetected={setFaceMatch} />
-                <GeolocationTracker onLocationCaptured={setLocation} />
-              </div>
-
-              <div className="space-y-4">
-                <Button
-                  onClick={() => setCameraActive(!cameraActive)}
-                  className="w-full h-12"
-                  variant={cameraActive ? "destructive" : "default"}
-                >
-                  <Camera className="w-4 h-4 mr-2" />
-                  {cameraActive ? "Stop Camera" : "Start Camera"}
-                </Button>
-
-                <AttendanceConfirmation
-                  faceMatch={faceMatch}
-                  location={location}
-                  geofenceValid={geofenceValid}
-                  onConfirm={handleMarkAttendance}
-                  onCancel={() => {
-                    setCameraActive(false)
-                    setLocation(null)
-                    setFaceMatch(null)
-                  }}
-                  isLoading={isSubmitting}
-                />
-              </div>
-            </div>
           </TabsContent>
 
           {/* Attendance History Tab */}

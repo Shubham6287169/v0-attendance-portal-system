@@ -3,6 +3,7 @@ export const ALLOWED_LOCATIONS = [
   { name: "Building A", lat: 40.7128, lng: -74.006, radius: 100 }, // 100 meters radius
   { name: "Building B", lat: 40.758, lng: -73.9855, radius: 100 },
   { name: "Campus Center", lat: 40.7489, lng: -73.968, radius: 150 },
+  { name: "Greater Noida New Campus", lat: 28.4595, lng: 77.5362, radius: 200 }, // 200 meters radius
 ]
 
 // Calculate distance between two coordinates using Haversine formula
