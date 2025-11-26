@@ -26,6 +26,7 @@ export function FaceRecognition({ onFaceDetected, isActive, studentId }: FaceRec
   const [confidence, setConfidence] = useState<number | null>(null)
   const [isCapturing, setIsCapturing] = useState(false)
   const [cameraReady, setCameraReady] = useState(false)
+  const [instructionMessage, setInstructionMessage] = useState<string>("")
 
   useEffect(() => {
     if (!isActive) {
@@ -46,6 +47,7 @@ export function FaceRecognition({ onFaceDetected, isActive, studentId }: FaceRec
               setError("Failed to start video stream")
             })
             setCameraReady(true)
+            setInstructionMessage("Position your face clearly in center. Ensure good lighting.")
           }
         }
       } catch (err) {
@@ -103,7 +105,6 @@ export function FaceRecognition({ onFaceDetected, isActive, studentId }: FaceRec
         const enrolledFace = getFaceDescriptor(studentId)
 
         if (enrolledFace) {
-          // Match captured face with enrolled face
           const matchConfidence = matchFace(descriptor, enrolledFace.descriptor)
           const isValid = isFaceMatchValid(matchConfidence)
 
@@ -115,8 +116,11 @@ export function FaceRecognition({ onFaceDetected, isActive, studentId }: FaceRec
 
           if (!isValid) {
             setError(
-              `Face match confidence ${Math.round(matchConfidence)}% is below 70% threshold. Please try again with better lighting.`,
+              `Face match confidence ${Math.round(matchConfidence)}% is below 70% threshold. Improve lighting and try again.`,
             )
+            setInstructionMessage("Try again with better lighting and clearer positioning.")
+          } else {
+            setInstructionMessage("Face matched successfully!")
           }
         } else {
           setError("Face not enrolled. Please enroll your face first.")
@@ -167,6 +171,12 @@ export function FaceRecognition({ onFaceDetected, isActive, studentId }: FaceRec
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
             </div>
           )}
+
+          {instructionMessage && (
+            <div className="absolute bottom-4 left-4 right-4 bg-black/60 text-white px-3 py-2 rounded-lg text-sm text-center">
+              {instructionMessage}
+            </div>
+          )}
         </div>
 
         <Button onClick={handleCaptureFace} disabled={!cameraReady || isCapturing} className="w-full" size="lg">
@@ -190,7 +200,7 @@ export function FaceRecognition({ onFaceDetected, isActive, studentId }: FaceRec
             </div>
             {confidence < 70 && (
               <p className="text-xs text-destructive mt-2">
-                Face match below 70% threshold. Please try again with better lighting and angle.
+                Below 70% threshold. Try again with better lighting and positioning.
               </p>
             )}
           </div>
