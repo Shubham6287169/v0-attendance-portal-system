@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createToken } from "@/lib/jwt"
+import { isValidEmail } from "@/lib/email-validation"
 
 // Mock user database
 const users = [
@@ -11,6 +12,10 @@ const users = [
 export async function POST(request: NextRequest) {
   try {
     const { email, password } = await request.json()
+
+    if (!isValidEmail(email)) {
+      return NextResponse.json({ message: "Invalid email format" }, { status: 400 })
+    }
 
     const user = users.find((u) => u.email === email && u.password === password)
 

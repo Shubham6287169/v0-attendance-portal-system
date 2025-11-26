@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-
+import { getEmailErrorMessage } from "@/lib/email-validation"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -18,11 +18,30 @@ export default function LoginPage() {
   const [name, setName] = useState("")
   const [role, setRole] = useState("student")
   const [error, setError] = useState("")
+  const [emailError, setEmailError] = useState("")
   const [loading, setLoading] = useState(false)
+
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    setEmail(value)
+    if (value) {
+      const errorMsg = getEmailErrorMessage(value)
+      setEmailError(errorMsg || "")
+    } else {
+      setEmailError("")
+    }
+  }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
+
+    const emailErr = getEmailErrorMessage(email)
+    if (emailErr) {
+      setError(emailErr)
+      return
+    }
+
     setLoading(true)
 
     try {
@@ -59,6 +78,13 @@ export default function LoginPage() {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
+
+    const emailErr = getEmailErrorMessage(email)
+    if (emailErr) {
+      setError(emailErr)
+      return
+    }
+
     setLoading(true)
 
     try {
@@ -120,9 +146,11 @@ export default function LoginPage() {
                       type="email"
                       placeholder="admin@example.com"
                       value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      onChange={handleEmailChange}
+                      className={emailError ? "border-destructive" : ""}
                       required
                     />
+                    {emailError && <p className="text-sm text-destructive">{emailError}</p>}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="login-password">Password</Label>
@@ -135,7 +163,7 @@ export default function LoginPage() {
                       required
                     />
                   </div>
-                  <Button type="submit" className="w-full" disabled={loading}>
+                  <Button type="submit" className="w-full" disabled={loading || !!emailError}>
                     <LogIn className="w-4 h-4 mr-2" />
                     {loading ? "Logging in..." : "Login"}
                   </Button>
@@ -173,9 +201,11 @@ export default function LoginPage() {
                       type="email"
                       placeholder="student@example.com"
                       value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      onChange={handleEmailChange}
+                      className={emailError ? "border-destructive" : ""}
                       required
                     />
+                    {emailError && <p className="text-sm text-destructive">{emailError}</p>}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="signup-password">Password</Label>
@@ -201,7 +231,7 @@ export default function LoginPage() {
                       <option value="admin">Admin</option>
                     </select>
                   </div>
-                  <Button type="submit" className="w-full" disabled={loading}>
+                  <Button type="submit" className="w-full" disabled={loading || !!emailError}>
                     <UserPlus className="w-4 h-4 mr-2" />
                     {loading ? "Creating account..." : "Sign Up"}
                   </Button>
