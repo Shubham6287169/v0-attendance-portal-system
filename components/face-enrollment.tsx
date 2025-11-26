@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Camera, CheckCircle, AlertCircle } from "lucide-react"
-import { storeFaceDescriptor, generateDescriptorFromPixels } from "@/lib/face-recognition-utils"
+import { generateDescriptorFromPixels } from "@/lib/face-recognition-utils"
 
 interface FaceEnrollmentProps {
   studentId: string
@@ -19,6 +19,7 @@ export function FaceEnrollment({ studentId, onEnrollmentComplete }: FaceEnrollme
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const [message, setMessage] = useState<string>("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const startEnrollment = async () => {
     setIsEnrolling(true)
@@ -28,15 +29,17 @@ export function FaceEnrollment({ studentId, onEnrollmentComplete }: FaceEnrollme
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user" },
+        video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
       })
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream
         videoRef.current.onloadedmetadata = () => {
-          videoRef.current?.play()
-          setMessage("Position your face in the center and keep it steady...")
-          setTimeout(() => captureAndEnroll(), 2000)
+          videoRef.current?.play().catch((err) => {
+            console.log("[v0] Play error:", err)
+            setError("Failed to start video")
+          })
+          setMessage("Position your face in the center. Keep good lighting. Click 'Capture & Enroll' when ready.")
         }
       }
     } catch (err) {
@@ -47,40 +50,75 @@ export function FaceEnrollment({ studentId, onEnrollmentComplete }: FaceEnrollme
   }
 
   const captureAndEnroll = async () => {
-    if (!videoRef.current || !canvasRef.current) return
-
-    const canvas = canvasRef.current
-    const video = videoRef.current
-    const ctx = canvas.getContext("2d")
-
-    if (!ctx) return
-
-    canvas.width = video.videoWidth
-    canvas.height = video.videoHeight
-    ctx.drawImage(video, 0, 0)
-
-    // Get actual pixel data from canvas
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-    const descriptor = generateDescriptorFromPixels(imageData.data, canvas.width, canvas.height)
-
-    console.log("[v0] Face enrolled with descriptor length:", descriptor.length)
-
-    // Store the face descriptor
-    storeFaceDescriptor(studentId, descriptor)
-
-    setMessage("Face enrolled successfully!")
-    setSuccess(true)
-
-    // Stop camera
-    if (video.srcObject) {
-      const tracks = (video.srcObject as MediaStream).getTracks()
-      tracks.forEach((track) => track.stop())
+    if (!videoRef.current || !canvasRef.current) {
+      setError("Camera or canvas reference not available")
+      return
     }
 
-    setTimeout(() => {
-      setIsEnrolling(false)
-      onEnrollmentComplete()
-    }, 2000)
+    setIsSubmitting(true)
+    setError(null)
+
+    try {
+      const canvas = canvasRef.current
+      const video = videoRef.current
+      const ctx = canvas.getContext("2d")
+
+      if (!ctx) {
+        throw new Error("Failed to get canvas context")
+      }
+
+      canvas.width = video.videoWidth
+      canvas.height = video.videoHeight
+
+      console.log("[v0] Canvas dimensions:", canvas.width, "x", canvas.height)
+      console.log("[v0] Video dimensions:", video.videoWidth, "x", video.videoHeight)
+
+      ctx.drawImage(video, 0, 0)
+
+      // Get pixel data
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+      console.log("[v0] Image data length:", imageData.data.length)
+
+      // Generate descriptor
+      const descriptor = generateDescriptorFromPixels(imageData.data, canvas.width, canvas.height)
+      console.log("[v0] Generated descriptor length:", descriptor.length)
+
+      const response = await fetch("/api/face/enroll", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          studentId,
+          descriptor,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || "Enrollment failed")
+      }
+
+      console.log("[v0] Face enrollment successful:", result)
+
+      setMessage("Face enrolled successfully!")
+      setSuccess(true)
+
+      // Stop camera
+      if (video.srcObject) {
+        const tracks = (video.srcObject as MediaStream).getTracks()
+        tracks.forEach((track) => track.stop())
+      }
+
+      setTimeout(() => {
+        setIsEnrolling(false)
+        onEnrollmentComplete()
+      }, 2000)
+    } catch (err) {
+      console.log("[v0] Capture error:", err)
+      setError(err instanceof Error ? err.message : "Failed to capture and enroll face")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const stopEnrollment = () => {
@@ -123,21 +161,32 @@ export function FaceEnrollment({ studentId, onEnrollmentComplete }: FaceEnrollme
               <canvas ref={canvasRef} className="hidden" />
             </div>
             <p className="text-sm text-muted-foreground text-center">{message}</p>
-            <Button onClick={stopEnrollment} variant="outline" className="w-full bg-transparent">
-              Cancel
-            </Button>
+            <div className="grid grid-cols-2 gap-2">
+              <Button onClick={captureAndEnroll} disabled={isSubmitting} className="w-full" size="lg">
+                <Camera className="w-4 h-4 mr-2" />
+                {isSubmitting ? "Enrolling..." : "Capture & Enroll"}
+              </Button>
+              <Button
+                onClick={stopEnrollment}
+                variant="outline"
+                className="w-full bg-transparent"
+                disabled={isSubmitting}
+              >
+                Cancel
+              </Button>
+            </div>
           </div>
         )}
 
         {!isEnrolling && !success && (
-          <Button onClick={startEnrollment} className="w-full">
+          <Button onClick={startEnrollment} className="w-full" size="lg">
             <Camera className="w-4 h-4 mr-2" />
             Start Face Enrollment
           </Button>
         )}
 
         {success && (
-          <Button onClick={() => setSuccess(false)} className="w-full">
+          <Button onClick={() => setSuccess(false)} className="w-full" size="lg">
             Done
           </Button>
         )}

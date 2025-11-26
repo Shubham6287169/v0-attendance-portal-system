@@ -5,12 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Camera, AlertCircle } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import {
-  getFaceDescriptor,
-  matchFace,
-  isFaceMatchValid,
-  generateDescriptorFromPixels,
-} from "@/lib/face-recognition-utils"
+import { generateDescriptorFromPixels } from "@/lib/face-recognition-utils"
 
 interface FaceRecognitionProps {
   onFaceDetected: (confidence: number) => void
@@ -74,6 +69,11 @@ export function FaceRecognition({ onFaceDetected, isActive, studentId }: FaceRec
       return
     }
 
+    if (!studentId) {
+      setError("Student ID not found")
+      return
+    }
+
     setIsCapturing(true)
     setError(null)
 
@@ -83,57 +83,54 @@ export function FaceRecognition({ onFaceDetected, isActive, studentId }: FaceRec
       const ctx = canvas.getContext("2d")
 
       if (!ctx) {
-        setError("Failed to access canvas context")
-        setIsCapturing(false)
-        return
+        throw new Error("Failed to access canvas context")
       }
 
-      // Set canvas dimensions to match video
       canvas.width = video.videoWidth
       canvas.height = video.videoHeight
 
-      // Draw current video frame to canvas
+      console.log("[v0] Capturing face - Canvas:", canvas.width, "x", canvas.height)
+
       ctx.drawImage(video, 0, 0)
 
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
       const descriptor = generateDescriptorFromPixels(imageData.data, canvas.width, canvas.height)
 
-      console.log("[v0] Face captured - descriptor generated, length:", descriptor.length)
+      console.log("[v0] Face captured - descriptor length:", descriptor.length)
 
-      // Get enrolled face descriptor
-      if (studentId) {
-        const enrolledFace = getFaceDescriptor(studentId)
+      const response = await fetch("/api/face/match", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          studentId,
+          descriptor,
+        }),
+      })
 
-        if (enrolledFace) {
-          const matchConfidence = matchFace(descriptor, enrolledFace.descriptor)
-          const isValid = isFaceMatchValid(matchConfidence)
+      const result = await response.json()
 
-          console.log("[v0] Face match result:", { matchConfidence, isValid, studentId })
+      if (!response.ok) {
+        throw new Error(result.error || "Face matching failed")
+      }
 
-          setConfidence(Math.round(matchConfidence))
-          setFaceDetected(isValid)
-          onFaceDetected(Math.round(matchConfidence))
+      console.log("[v0] Face match result:", result)
 
-          if (!isValid) {
-            setError(
-              `Face match confidence ${Math.round(matchConfidence)}% is below 70% threshold. Improve lighting and try again.`,
-            )
-            setInstructionMessage("Try again with better lighting and clearer positioning.")
-          } else {
-            setInstructionMessage("Face matched successfully!")
-          }
-        } else {
-          setError("Face not enrolled. Please enroll your face first.")
-          setFaceDetected(false)
-          onFaceDetected(0)
-        }
+      const matchConfidence = result.confidence
+      const isValid = result.matched
+
+      setConfidence(matchConfidence)
+      setFaceDetected(isValid)
+      onFaceDetected(matchConfidence)
+
+      if (!isValid) {
+        setError(`${result.message}`)
+        setInstructionMessage("Try again with better lighting and clearer positioning.")
       } else {
-        setError("Student ID not found")
-        onFaceDetected(0)
+        setInstructionMessage("✓ Face matched successfully!")
       }
     } catch (err) {
       console.log("[v0] Face capture error:", err)
-      setError("Error capturing face. Please try again.")
+      setError(err instanceof Error ? err.message : "Error capturing face. Please try again.")
     } finally {
       setIsCapturing(false)
     }
@@ -160,7 +157,7 @@ export function FaceRecognition({ onFaceDetected, isActive, studentId }: FaceRec
           <video ref={videoRef} className="w-full h-full object-cover" playsInline muted />
           <canvas ref={canvasRef} className="hidden" />
 
-          {faceDetected && confidence && (
+          {faceDetected && confidence !== null && (
             <div className="absolute top-4 right-4 bg-accent/90 text-accent-foreground px-3 py-2 rounded-lg text-sm font-medium">
               ✓ Match: {confidence}%
             </div>
