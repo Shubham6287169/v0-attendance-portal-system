@@ -37,6 +37,7 @@ export default function StudentDashboard() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [faceEnrolled, setFaceEnrolled] = useState(false)
   const [showEnrollment, setShowEnrollment] = useState(false)
+  const [enrollmentLoading, setEnrollmentLoading] = useState(true)
 
   useEffect(() => {
     const userData = localStorage.getItem("user")
@@ -48,12 +49,7 @@ export default function StudentDashboard() {
     setUser(parsedUser)
 
     // Check if face is enrolled
-    const faceData = localStorage.getItem("face_descriptors")
-    if (faceData) {
-      const descriptors = JSON.parse(faceData)
-      const enrolled = descriptors.some((d: any) => d.studentId === parsedUser.id)
-      setFaceEnrolled(enrolled)
-    }
+    checkFaceEnrollment(parsedUser.id)
   }, [])
 
   useEffect(() => {
@@ -62,6 +58,27 @@ export default function StudentDashboard() {
       setGeofenceValid(geofence.isValid)
     }
   }, [location])
+
+  const checkFaceEnrollment = async (studentId: string) => {
+    try {
+      const response = await fetch(`/api/face/enroll?studentId=${studentId}`)
+      const data = await response.json()
+
+      console.log("[v0] Enrollment check result:", data)
+      setFaceEnrolled(data.enrolled || false)
+      setEnrollmentLoading(false)
+    } catch (error) {
+      console.error("[v0] Error checking enrollment:", error)
+      // Fallback to localStorage check
+      const faceData = localStorage.getItem("face_descriptors")
+      if (faceData) {
+        const descriptors = JSON.parse(faceData)
+        const enrolled = descriptors.some((d: any) => d.studentId === studentId)
+        setFaceEnrolled(enrolled)
+      }
+      setEnrollmentLoading(false)
+    }
+  }
 
   const handleMarkAttendance = async () => {
     if (faceMatch === null || faceMatch === undefined || !location || !geofenceValid) {
@@ -127,6 +144,24 @@ export default function StudentDashboard() {
   const approvedCount = attendanceRecords.filter((r) => r.status === "approved").length
   const pendingCount = attendanceRecords.filter((r) => r.status === "pending").length
 
+  if (enrollmentLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Card className="w-96">
+          <CardHeader>
+            <CardTitle>Checking Face Enrollment...</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="animate-pulse space-y-2">
+              <div className="h-4 bg-muted rounded"></div>
+              <div className="h-4 bg-muted rounded w-5/6"></div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -173,7 +208,6 @@ export default function StudentDashboard() {
           </Card>
         </div>
 
-        {/* Face Enrollment Alert */}
         {!faceEnrolled && !showEnrollment && (
           <Alert className="mb-6 border-secondary/50 bg-secondary/10">
             <Fingerprint className="h-4 w-4" />
@@ -187,7 +221,7 @@ export default function StudentDashboard() {
         )}
 
         {/* Tabs */}
-        <Tabs defaultValue={showEnrollment ? "enroll" : "mark"} className="space-y-4">
+        <Tabs defaultValue={showEnrollment && !faceEnrolled ? "enroll" : "mark"} className="space-y-4">
           <TabsList>
             {!faceEnrolled && (
               <TabsTrigger value="enroll" className="flex items-center gap-2">
