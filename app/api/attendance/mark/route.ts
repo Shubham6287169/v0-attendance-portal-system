@@ -18,8 +18,21 @@ export async function POST(request: NextRequest) {
 
     const { faceMatch, location, geofenceValid } = await request.json()
 
-    if (!faceMatch || !location || !geofenceValid) {
-      return NextResponse.json({ message: "Invalid attendance data" }, { status: 400 })
+    // Also added better error messages
+    if (faceMatch === null || faceMatch === undefined || !location || !geofenceValid) {
+      const missingFields = []
+      if (faceMatch === null || faceMatch === undefined) missingFields.push("Face recognition")
+      if (!location) missingFields.push("Location")
+      if (!geofenceValid) missingFields.push("Geofence validation")
+
+      return NextResponse.json({ message: `Missing required fields: ${missingFields.join(", ")}` }, { status: 400 })
+    }
+
+    if (faceMatch < 70) {
+      return NextResponse.json(
+        { message: "Face match confidence below threshold (70%). Please try again with a clearer face." },
+        { status: 400 },
+      )
     }
 
     const newRecord = {
@@ -45,6 +58,7 @@ export async function POST(request: NextRequest) {
       { status: 201 },
     )
   } catch (error) {
+    console.log("[v0] Error in attendance API:", error)
     return NextResponse.json({ message: "Internal server error" }, { status: 500 })
   }
 }

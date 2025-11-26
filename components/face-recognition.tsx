@@ -19,9 +19,15 @@ export function FaceRecognition({ onFaceDetected, isActive, studentId }: FaceRec
   const [faceDetected, setFaceDetected] = useState(false)
   const [confidence, setConfidence] = useState<number | null>(null)
   const [isMatching, setIsMatching] = useState(false)
+  const detectionIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
-    if (!isActive) return
+    if (!isActive) {
+      if (detectionIntervalRef.current) {
+        clearInterval(detectionIntervalRef.current)
+      }
+      return
+    }
 
     const startCamera = async () => {
       try {
@@ -38,12 +44,16 @@ export function FaceRecognition({ onFaceDetected, isActive, studentId }: FaceRec
         }
       } catch (err) {
         setError("Unable to access camera. Please check permissions.")
+        console.log("[v0] Camera error:", err)
       }
     }
 
     startCamera()
 
     return () => {
+      if (detectionIntervalRef.current) {
+        clearInterval(detectionIntervalRef.current)
+      }
       if (videoRef.current?.srcObject) {
         const tracks = (videoRef.current.srcObject as MediaStream).getTracks()
         tracks.forEach((track) => track.stop())
@@ -60,45 +70,52 @@ export function FaceRecognition({ onFaceDetected, isActive, studentId }: FaceRec
 
     if (!ctx) return
 
-    canvas.width = video.videoWidth
-    canvas.height = video.videoHeight
-    ctx.drawImage(video, 0, 0)
+    try {
+      canvas.width = video.videoWidth
+      canvas.height = video.videoHeight
+      ctx.drawImage(video, 0, 0)
 
-    // Simulate face detection and descriptor generation
-    // In production, use face-api.js or TensorFlow.js with face_recognition.js
-    const capturedDescriptor = Array.from({ length: 128 }, () => Math.random() * 2 - 1)
+      // Simulate face detection and descriptor generation
+      // In production, use face-api.js or TensorFlow.js with face_recognition.js
+      const capturedDescriptor = Array.from({ length: 128 }, () => Math.random() * 2 - 1)
 
-    setIsMatching(true)
+      setIsMatching(true)
 
-    // Get enrolled face descriptor
-    if (studentId) {
-      const enrolledFace = getFaceDescriptor(studentId)
+      // Get enrolled face descriptor
+      if (studentId) {
+        const enrolledFace = getFaceDescriptor(studentId)
 
-      if (enrolledFace) {
-        // Match captured face with enrolled face
-        const matchConfidence = matchFace(capturedDescriptor, enrolledFace.descriptor)
-        const isValid = isFaceMatchValid(matchConfidence)
+        if (enrolledFace) {
+          // Match captured face with enrolled face
+          const matchConfidence = matchFace(capturedDescriptor, enrolledFace.descriptor)
+          const isValid = isFaceMatchValid(matchConfidence)
 
-        setConfidence(Math.round(matchConfidence))
-        setFaceDetected(isValid)
-        onFaceDetected(isValid ? Math.round(matchConfidence) : 0)
+          console.log("[v0] Face match result:", { matchConfidence, isValid, studentId })
+
+          setConfidence(Math.round(matchConfidence))
+          setFaceDetected(isValid)
+          onFaceDetected(Math.round(matchConfidence))
+        } else {
+          // No enrolled face found
+          setError("Face not enrolled. Please enroll your face first.")
+          setFaceDetected(false)
+          onFaceDetected(0)
+        }
       } else {
-        // No enrolled face found
-        setError("Face not enrolled. Please enroll your face first.")
-        setFaceDetected(false)
+        // Fallback: just use simulated confidence
+        const simulatedConfidence = Math.floor(Math.random() * (99 - 75 + 1)) + 75
+        setConfidence(simulatedConfidence)
+        setFaceDetected(true)
+        onFaceDetected(simulatedConfidence)
       }
-    } else {
-      // Fallback: just use simulated confidence
-      const simulatedConfidence = Math.floor(Math.random() * (99 - 75 + 1)) + 75
-      setConfidence(simulatedConfidence)
-      setFaceDetected(true)
-      onFaceDetected(simulatedConfidence)
+
+      setIsMatching(false)
+    } catch (err) {
+      console.log("[v0] Face detection error:", err)
+      setError("Error detecting face")
     }
 
-    setIsMatching(false)
-
-    // Continue detection loop
-    setTimeout(detectAndMatchFace, 1000)
+    detectionIntervalRef.current = setTimeout(detectAndMatchFace, 1000)
   }
 
   return (
@@ -135,7 +152,7 @@ export function FaceRecognition({ onFaceDetected, isActive, studentId }: FaceRec
           )}
         </div>
 
-        {confidence && (
+        {confidence !== null && (
           <div className="p-3 bg-accent/10 rounded-lg border border-accent/20">
             <p className="text-sm text-muted-foreground">Face Match Confidence</p>
             <div className="flex items-center gap-2 mt-2">
@@ -150,7 +167,9 @@ export function FaceRecognition({ onFaceDetected, isActive, studentId }: FaceRec
               </span>
             </div>
             {confidence < 70 && (
-              <p className="text-xs text-destructive mt-2">Face match below threshold. Please try again.</p>
+              <p className="text-xs text-destructive mt-2">
+                Face match below threshold. Please try again with better lighting.
+              </p>
             )}
           </div>
         )}

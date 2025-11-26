@@ -64,8 +64,14 @@ export default function StudentDashboard() {
   }, [location])
 
   const handleMarkAttendance = async () => {
-    if (!location || !faceMatch || !geofenceValid) {
-      setMessage({ type: "error", text: "Please complete all requirements" })
+    if (faceMatch === null || faceMatch === undefined || !location || !geofenceValid) {
+      setMessage({ type: "error", text: "Please complete all requirements (face, location, geofence)" })
+      console.log("[v0] Validation failed:", { faceMatch, location, geofenceValid })
+      return
+    }
+
+    if (faceMatch < 70) {
+      setMessage({ type: "error", text: "Face match too low. Please retake your photo with better lighting." })
       return
     }
 
@@ -83,6 +89,7 @@ export default function StudentDashboard() {
       })
 
       const data = await response.json()
+      console.log("[v0] Attendance response:", data)
 
       if (!response.ok) {
         setMessage({ type: "error", text: data.message || "Failed to mark attendance" })
@@ -104,6 +111,7 @@ export default function StudentDashboard() {
       setFaceMatch(null)
       setMessage({ type: "success", text: "Attendance marked successfully. Pending admin approval." })
     } catch (err) {
+      console.log("[v0] Error marking attendance:", err)
       setMessage({ type: "error", text: "An error occurred. Please try again." })
     } finally {
       setIsSubmitting(false)
