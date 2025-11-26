@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Camera, CheckCircle, AlertCircle } from "lucide-react"
-import { storeFaceDescriptor } from "@/lib/face-recognition-utils"
+import { storeFaceDescriptor, generateDescriptorFromPixels } from "@/lib/face-recognition-utils"
 
 interface FaceEnrollmentProps {
   studentId: string
@@ -42,6 +42,7 @@ export function FaceEnrollment({ studentId, onEnrollmentComplete }: FaceEnrollme
     } catch (err) {
       setError("Unable to access camera. Please check permissions.")
       setIsEnrolling(false)
+      console.log("[v0] Camera error:", err)
     }
   }
 
@@ -58,9 +59,11 @@ export function FaceEnrollment({ studentId, onEnrollmentComplete }: FaceEnrollme
     canvas.height = video.videoHeight
     ctx.drawImage(video, 0, 0)
 
-    // Simulate face descriptor generation (in production, use face-api.js)
-    // Generate a random 128-dimensional descriptor
-    const descriptor = Array.from({ length: 128 }, () => Math.random() * 2 - 1)
+    // Get actual pixel data from canvas
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+    const descriptor = generateDescriptorFromPixels(imageData.data, canvas.width, canvas.height)
+
+    console.log("[v0] Face enrolled with descriptor length:", descriptor.length)
 
     // Store the face descriptor
     storeFaceDescriptor(studentId, descriptor)

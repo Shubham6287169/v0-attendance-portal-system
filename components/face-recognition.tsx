@@ -5,7 +5,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Camera, AlertCircle } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { getFaceDescriptor, matchFace, isFaceMatchValid } from "@/lib/face-recognition-utils"
+import {
+  getFaceDescriptor,
+  matchFace,
+  isFaceMatchValid,
+  generateDescriptorFromPixels,
+} from "@/lib/face-recognition-utils"
 
 interface FaceRecognitionProps {
   onFaceDetected: (confidence: number) => void
@@ -77,6 +82,7 @@ export function FaceRecognition({ onFaceDetected, isActive, studentId }: FaceRec
 
       if (!ctx) {
         setError("Failed to access canvas context")
+        setIsCapturing(false)
         return
       }
 
@@ -87,22 +93,10 @@ export function FaceRecognition({ onFaceDetected, isActive, studentId }: FaceRec
       // Draw current video frame to canvas
       ctx.drawImage(video, 0, 0)
 
-      // Create a stable descriptor from the captured frame
-      // Using a deterministic approach based on the image data
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-      const data = imageData.data
+      const descriptor = generateDescriptorFromPixels(imageData.data, canvas.width, canvas.height)
 
-      // Generate descriptor from pixel data (simplified face encoding)
-      const descriptor: number[] = []
-      const samplingRate = Math.max(1, Math.floor(data.length / 128))
-
-      for (let i = 0; i < 128; i++) {
-        const pixelIndex = (i * samplingRate) % data.length
-        // Normalize pixel values to -1 to 1 range
-        descriptor.push((data[pixelIndex] / 255) * 2 - 1)
-      }
-
-      console.log("[v0] Face captured - descriptor generated")
+      console.log("[v0] Face captured - descriptor generated, length:", descriptor.length)
 
       // Get enrolled face descriptor
       if (studentId) {
@@ -120,7 +114,9 @@ export function FaceRecognition({ onFaceDetected, isActive, studentId }: FaceRec
           onFaceDetected(Math.round(matchConfidence))
 
           if (!isValid) {
-            setError(`Face match confidence ${Math.round(matchConfidence)}% is below threshold. Please try again.`)
+            setError(
+              `Face match confidence ${Math.round(matchConfidence)}% is below 70% threshold. Please try again with better lighting.`,
+            )
           }
         } else {
           setError("Face not enrolled. Please enroll your face first.")

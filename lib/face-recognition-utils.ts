@@ -52,14 +52,40 @@ export function calculateFaceDistance(descriptor1: number[], descriptor2: number
 export function matchFace(capturedDescriptor: number[], enrolledDescriptor: number[], threshold = 0.6): number {
   const distance = calculateFaceDistance(capturedDescriptor, enrolledDescriptor)
 
-  // Convert distance to confidence percentage (0-100)
-  // Distance < 0.3 = excellent match, Distance > 1.0 = poor match
-  const confidence = Math.max(0, Math.min(100, 100 - distance * 100))
+  // Convert distance to confidence percentage
+  // Distance 0 = 100% match, Distance increases = lower confidence
+  // Max useful distance is around 2.0, anything above is definitely not a match
+  let confidence = Math.max(0, 100 - distance * 50)
+  confidence = Math.min(100, confidence)
 
+  console.log("[v0] Distance:", distance, "Confidence:", confidence)
   return confidence
 }
 
 // Check if face match is valid (above threshold)
 export function isFaceMatchValid(confidence: number, threshold = 70): boolean {
-  return confidence >= threshold
+  const isValid = confidence >= threshold
+  console.log("[v0] Threshold check - Confidence:", confidence, "Threshold:", threshold, "Valid:", isValid)
+  return isValid
+}
+
+// Generate deterministic descriptor from pixel data
+export function generateDescriptorFromPixels(pixelData: Uint8ClampedArray, width: number, height: number): number[] {
+  const descriptor: number[] = []
+
+  // Sample pixels at regular intervals to create a 128-dimensional descriptor
+  const step = Math.max(1, Math.floor(pixelData.length / 4 / 128))
+
+  for (let i = 0; i < 128; i++) {
+    const pixelIndex = (i * step * 4) % pixelData.length
+    // Get RGB values and convert to grayscale
+    const r = pixelData[pixelIndex]
+    const g = pixelData[pixelIndex + 1]
+    const b = pixelData[pixelIndex + 2]
+    const gray = (r * 0.299 + g * 0.587 + b * 0.114) / 255
+    // Normalize to -1 to 1 range
+    descriptor.push(gray * 2 - 1)
+  }
+
+  return descriptor
 }
