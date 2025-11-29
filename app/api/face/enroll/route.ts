@@ -17,13 +17,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid face data" }, { status: 400 })
     }
 
-    addFaceEnrollment(studentId, descriptor)
+    if (checkFaceEnrolled(studentId)) {
+      return NextResponse.json({ error: "Face already enrolled. Contact admin to reset enrollment." }, { status: 400 })
+    }
+
+    const result = addFaceEnrollment(studentId, descriptor)
+
+    if (!result.success) {
+      return NextResponse.json({ error: result.message }, { status: 400 })
+    }
 
     console.log("[v0] Face enrolled for student:", studentId, "Descriptor length:", descriptor.length)
 
     return NextResponse.json({
       success: true,
-      message: "Face enrolled successfully",
+      message: result.message,
       studentId,
       enrolledAt: new Date().toISOString(),
     })

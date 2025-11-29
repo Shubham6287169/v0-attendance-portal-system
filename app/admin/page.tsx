@@ -81,6 +81,9 @@ export default function AdminDashboard() {
   const [editingLocation, setEditingLocation] = useState<GeofenceSetting | null>(null)
   const [newLocation, setNewLocation] = useState({ name: "", lat: "", lng: "", radius: "" })
 
+  const [showFaceSettings, setShowFaceSettings] = useState(false)
+  const [enrolledFaces, setEnrolledFaces] = useState<any[]>([])
+
   useEffect(() => {
     const userData = localStorage.getItem("user")
     if (!userData) {
@@ -90,6 +93,12 @@ export default function AdminDashboard() {
     setUser(JSON.parse(userData))
 
     setGeofenceSettings(getAllowedLocations())
+
+    // In production, fetch from API
+    const faces = localStorage.getItem("enrolledFaces")
+    if (faces) {
+      setEnrolledFaces(JSON.parse(faces))
+    }
   }, [])
 
   const handleAddStudent = () => {
@@ -539,6 +548,64 @@ export default function AdminDashboard() {
                       ))}
                     </TableBody>
                   </Table>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Face Enrollment Management */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Face Enrollment Management</CardTitle>
+                <CardDescription>Manage student face enrollments - students can only enroll once</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="text-sm bg-accent/10 p-3 rounded-md border border-accent/20">
+                    <p className="font-medium text-accent">Important:</p>
+                    <p className="text-muted-foreground">
+                      Students can only enroll their face one time. After enrollment, only admins can reset or manage
+                      face data.
+                    </p>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Student ID</TableHead>
+                          <TableHead>Enrolled</TableHead>
+                          <TableHead>Enrollment Date</TableHead>
+                          <TableHead>Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {enrolledFaces.map((face) => (
+                          <TableRow key={face.studentId}>
+                            <TableCell>{face.studentId}</TableCell>
+                            <TableCell>
+                              <span className="px-2 py-1 rounded-full text-xs font-medium bg-accent/20 text-accent">
+                                Yes
+                              </span>
+                            </TableCell>
+                            <TableCell>{new Date(face.enrolledAt).toLocaleDateString()}</TableCell>
+                            <TableCell className="space-x-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  const updated = enrolledFaces.filter((f) => f.studentId !== face.studentId)
+                                  setEnrolledFaces(updated)
+                                  localStorage.setItem("enrolledFaces", JSON.stringify(updated))
+                                }}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </div>
               </CardContent>
             </Card>
