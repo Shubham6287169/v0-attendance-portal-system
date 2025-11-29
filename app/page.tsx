@@ -25,6 +25,7 @@ export default function LoginPage() {
   const [newPassword, setNewPassword] = useState("")
   const [forgotStep, setForgotStep] = useState<"email" | "otp" | "password">("email")
   const [otpSent, setOtpSent] = useState(false)
+  const [forgotEmailError, setForgotEmailError] = useState("")
 
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
@@ -116,13 +117,14 @@ export default function LoginPage() {
     }
   }
 
-  const handleForgotPassword = async (e: React.FormEvent) => {
+  const handleForgotPasswordEmail = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
+    setForgotEmailError("")
 
     const emailErr = getEmailErrorMessage(forgotEmail)
     if (emailErr) {
-      setError(emailErr)
+      setForgotEmailError(emailErr)
       return
     }
 
@@ -348,42 +350,32 @@ export default function LoginPage() {
 
               <TabsContent value="forgot" className="space-y-4">
                 {forgotStep === "email" && (
-                  <form onSubmit={handleForgotPassword} className="space-y-4">
+                  <form onSubmit={handleForgotPasswordEmail} className="space-y-4">
                     {error && (
                       <Alert variant="destructive">
                         <AlertCircle className="h-4 w-4" />
                         <AlertDescription>{error}</AlertDescription>
                       </Alert>
                     )}
-                    <Alert className="border-green-500 bg-green-50">
-                      <AlertCircle className="h-4 w-4 text-green-600" />
-                      <AlertDescription className="text-green-800">
-                        <strong>✓ OTP sent successfully!</strong> An OTP has been sent to <strong>{forgotEmail}</strong>
-                        . Please check your registered email inbox.
-                      </AlertDescription>
-                    </Alert>
-                    <p className="text-sm text-muted-foreground">Enter the 6-digit OTP sent to {forgotEmail}</p>
-                    <Alert className="border-blue-500 bg-blue-50">
-                      <AlertCircle className="h-4 w-4 text-blue-600" />
-                      <AlertDescription className="text-blue-800">
-                        <strong>For Testing:</strong> Check the browser console (F12) for the OTP, or open DevTools
-                        Network tab to see the response with testOTP field.
-                      </AlertDescription>
-                    </Alert>
                     <div className="space-y-2">
-                      <Label htmlFor="otp">Enter OTP</Label>
+                      <Label htmlFor="forgot-email">Enter Your Registered Email</Label>
                       <Input
-                        id="otp"
-                        type="text"
-                        placeholder="000000"
-                        maxLength={6}
-                        value={otp}
-                        onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
+                        id="forgot-email"
+                        type="email"
+                        placeholder="student@example.com"
+                        value={forgotEmail}
+                        onChange={(e) => {
+                          setForgotEmail(e.target.value)
+                          const emailErr = getEmailErrorMessage(e.target.value)
+                          setForgotEmailError(emailErr || "")
+                        }}
+                        className={forgotEmailError ? "border-destructive" : ""}
                         required
                       />
+                      {forgotEmailError && <p className="text-sm text-destructive">{forgotEmailError}</p>}
                     </div>
-                    <Button type="submit" className="w-full" disabled={loading || otp.length !== 6}>
-                      {loading ? "Verifying..." : "Verify OTP"}
+                    <Button type="submit" className="w-full" disabled={loading || !!forgotEmailError || !forgotEmail}>
+                      {loading ? "Sending OTP..." : "Send OTP"}
                     </Button>
                   </form>
                 )}
@@ -399,20 +391,13 @@ export default function LoginPage() {
                     <Alert className="border-green-500 bg-green-50">
                       <AlertCircle className="h-4 w-4 text-green-600" />
                       <AlertDescription className="text-green-800">
-                        <strong>✓ OTP sent successfully!</strong> An OTP has been sent to <strong>{forgotEmail}</strong>
-                        . Please check your registered email inbox.
-                      </AlertDescription>
-                    </Alert>
-                    <p className="text-sm text-muted-foreground">Enter the 6-digit OTP sent to {forgotEmail}</p>
-                    <Alert className="border-blue-500 bg-blue-50">
-                      <AlertCircle className="h-4 w-4 text-blue-600" />
-                      <AlertDescription className="text-blue-800">
-                        <strong>For Testing:</strong> Check the browser console (F12) for the OTP, or open DevTools
-                        Network tab to see the response with testOTP field.
+                        <strong>OTP has been sent to your registered email ID</strong>
+                        <br />
+                        Email: {forgotEmail}
                       </AlertDescription>
                     </Alert>
                     <div className="space-y-2">
-                      <Label htmlFor="otp">Enter OTP</Label>
+                      <Label htmlFor="otp">Enter 6-Digit OTP</Label>
                       <Input
                         id="otp"
                         type="text"
@@ -420,11 +405,30 @@ export default function LoginPage() {
                         maxLength={6}
                         value={otp}
                         onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
+                        className="text-center text-2xl tracking-widest"
                         required
                       />
                     </div>
+                    <Alert className="border-blue-500 bg-blue-50">
+                      <AlertCircle className="h-4 w-4 text-blue-600" />
+                      <AlertDescription className="text-blue-800 text-sm">
+                        For testing: Check browser console (F12) or Network tab for the OTP.
+                      </AlertDescription>
+                    </Alert>
                     <Button type="submit" className="w-full" disabled={loading || otp.length !== 6}>
                       {loading ? "Verifying..." : "Verify OTP"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full bg-transparent"
+                      onClick={() => {
+                        setForgotStep("email")
+                        setOtp("")
+                        setOtpSent(false)
+                      }}
+                    >
+                      Back to Email
                     </Button>
                   </form>
                 )}
@@ -437,7 +441,14 @@ export default function LoginPage() {
                         <AlertDescription>{error}</AlertDescription>
                       </Alert>
                     )}
-                    <p className="text-sm text-muted-foreground">Create a new password</p>
+                    <Alert className="border-green-500 bg-green-50">
+                      <AlertCircle className="h-4 w-4 text-green-600" />
+                      <AlertDescription className="text-green-800">
+                        <strong>OTP Verified Successfully!</strong>
+                        <br />
+                        Now set your new password below.
+                      </AlertDescription>
+                    </Alert>
                     <div className="space-y-2">
                       <Label htmlFor="new-password">New Password</Label>
                       <Input
@@ -448,8 +459,11 @@ export default function LoginPage() {
                         onChange={(e) => setNewPassword(e.target.value)}
                         required
                       />
+                      {newPassword && newPassword.length < 6 && (
+                        <p className="text-sm text-destructive">Password must be at least 6 characters</p>
+                      )}
                     </div>
-                    <Button type="submit" className="w-full" disabled={loading}>
+                    <Button type="submit" className="w-full" disabled={loading || newPassword.length < 6}>
                       {loading ? "Resetting..." : "Reset Password"}
                     </Button>
                   </form>
