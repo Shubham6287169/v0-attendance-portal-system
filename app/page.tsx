@@ -381,6 +381,13 @@ export default function LoginPage() {
                       </Alert>
                     )}
                     <p className="text-sm text-muted-foreground">Enter the 6-digit OTP sent to {forgotEmail}</p>
+                    <Alert className="border-blue-500 bg-blue-50">
+                      <AlertCircle className="h-4 w-4 text-blue-600" />
+                      <AlertDescription className="text-blue-800">
+                        <strong>For Testing:</strong> Check the browser console (F12) for the OTP, or open DevTools
+                        Network tab to see the response with testOTP field.
+                      </AlertDescription>
+                    </Alert>
                     <div className="space-y-2">
                       <Label htmlFor="otp">Enter OTP</Label>
                       <Input

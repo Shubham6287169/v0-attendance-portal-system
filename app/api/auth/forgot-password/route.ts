@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { isValidEmail } from "@/lib/email-validation"
 import { generateOTP, storeOTP } from "@/lib/otp-database"
+import { sendOTPEmail, getOTPForDisplay } from "@/lib/email-service"
 
 // Mock user database
 const users = [
@@ -29,15 +30,17 @@ export async function POST(request: NextRequest) {
 
     const otp = generateOTP()
     storeOTP(email, otp)
+    await sendOTPEmail(email, otp)
 
-    // In production, send email here
-    console.log(`[Forgot Password] OTP for ${email}: ${otp}`)
+    const displayOTP = getOTPForDisplay(email)
 
     return NextResponse.json({
       message: "OTP sent to registered email",
       success: true,
+      ...(process.env.NODE_ENV === "development" && { testOTP: displayOTP }),
     })
   } catch (error) {
+    console.error("[Forgot Password Error]:", error)
     return NextResponse.json({ message: "Internal server error" }, { status: 500 })
   }
 }
