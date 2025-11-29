@@ -1,49 +1,66 @@
-const otpDisplay: { [key: string]: string } = {}
+import nodemailer from "nodemailer"
 
-export function storeOTPForDisplay(email: string, otp: string) {
-  otpDisplay[email] = otp
+const transporter = nodemailer.createTransport({
+  service: process.env.EMAIL_SERVICE || "gmail",
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASSWORD,
+  },
+})
+
+// Fallback for development/testing
+const devOTPStore: Map<string, string> = new Map()
+
+export async function sendOTPEmail(email: string, otp: string): Promise<boolean> {
+  try {
+    // Store OTP in development mode for testing
+    if (process.env.NODE_ENV === "development") {
+      devOTPStore.set(email, otp)
+      console.log(`[Development] OTP for ${email}: ${otp}`)
+    }
+
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
+      console.warn("Email service not configured. Please set EMAIL_USER and EMAIL_PASSWORD environment variables.")
+      return true // Return true to allow testing
+    }
+
+    const mailOptions = {
+      from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+      to: email,
+      subject: "Password Reset OTP - Attendance Portal",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #333;">Password Reset Request</h2>
+          <p>You requested a password reset for your Attendance Portal account.</p>
+          <div style="background-color: #f0f0f0; padding: 20px; border-radius: 5px; margin: 20px 0;">
+            <p style="margin: 0; font-size: 12px; color: #666;">Your One-Time Password (OTP) is:</p>
+            <h1 style="margin: 10px 0; color: #007bff; letter-spacing: 3px;">${otp}</h1>
+            <p style="margin: 10px 0; font-size: 12px; color: #666;">This OTP will expire in 10 minutes.</p>
+          </div>
+          <p style="color: #666; font-size: 14px;">
+            If you didn't request this password reset, please ignore this email.
+          </p>
+          <p style="color: #999; font-size: 12px; margin-top: 20px;">
+            Attendance Portal System
+          </p>
+        </div>
+      `,
+      text: `Your OTP for password reset is: ${otp}. This OTP will expire in 10 minutes.`,
+    }
+
+    await transporter.sendMail(mailOptions)
+    console.log(`OTP sent successfully to ${email}`)
+    return true
+  } catch (error) {
+    console.error("Error sending OTP email:", error)
+    return false
+  }
 }
 
 export function getOTPForDisplay(email: string): string | null {
-  return otpDisplay[email] || null
+  return devOTPStore.get(email) || null
 }
 
-export async function sendOTPEmail(email: string, otp: string): Promise<boolean> {
-  // For development/testing: Store OTP so it can be displayed in UI
-  storeOTPForDisplay(email, otp)
-
-  // Log to console for testing
-  console.log(`[Email Service] OTP for ${email}: ${otp}`)
-  console.log(`[Email Service] OTP is valid for 10 minutes`)
-
-  // In production, integrate with email service like:
-  // - SendGrid: https://sendgrid.com
-  // - EmailJS: https://www.emailjs.com
-  // - AWS SES: https://aws.amazon.com/ses/
-  // - Mailgun: https://www.mailgun.com
-
-  // Example production code (uncomment and configure):
-  // const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
-  //   method: 'POST',
-  //   headers: {
-  //     'Authorization': `Bearer ${process.env.SENDGRID_API_KEY}`,
-  //     'Content-Type': 'application/json',
-  //   },
-  //   body: JSON.stringify({
-  //     personalizations: [{ to: [{ email }] }],
-  //     from: { email: 'noreply@attendanceportal.com' },
-  //     subject: 'Your Password Reset OTP',
-  //     content: [{
-  //       type: 'text/html',
-  //       value: `<h2>Your OTP is: ${otp}</h2><p>Valid for 10 minutes</p>`
-  //     }]
-  //   })
-  // })
-  // return response.ok
-
-  return true
-}
-
-export function clearOTPDisplay(email: string) {
-  delete otpDisplay[email]
+export function clearOTPStore() {
+  devOTPStore.clear()
 }

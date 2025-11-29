@@ -6,7 +6,7 @@ import { sendOTPEmail, getOTPForDisplay } from "@/lib/email-service"
 // Mock user database
 const users = [
   { id: "1", email: "admin@example.com", password: "password123", name: "Admin User", role: "admin" },
-  { id: "2", email: "student@example.com", password: "password123", name: "John Doe", role: "student" },
+  { id: "2", email: "student@example.com", password: "password123", name: "Rajesh Kumar", role: "student" },
   { id: "3", email: "teacher@example.com", password: "password123", name: "Jane Smith", role: "teacher" },
 ]
 
@@ -30,7 +30,12 @@ export async function POST(request: NextRequest) {
 
     const otp = generateOTP()
     storeOTP(email, otp)
-    await sendOTPEmail(email, otp)
+
+    const emailSent = await sendOTPEmail(email, otp)
+
+    if (!emailSent && process.env.NODE_ENV === "production") {
+      return NextResponse.json({ message: "Failed to send OTP email. Please try again later." }, { status: 500 })
+    }
 
     const displayOTP = getOTPForDisplay(email)
 
