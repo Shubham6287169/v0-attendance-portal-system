@@ -1,11 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-
-// This will be populated from the enroll endpoint
-const faceDatabase: Array<{
-  studentId: string
-  descriptor: number[]
-  enrolledAt: string
-}> = []
+import { getFaceEnrollment } from "@/lib/face-database"
 
 function calculateFaceDistance(descriptor1: number[], descriptor2: number[]): number {
   if (descriptor1.length !== descriptor2.length) return Number.POSITIVE_INFINITY
@@ -35,8 +29,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid data" }, { status: 400 })
     }
 
-    // Find enrolled face for this student
-    const enrolled = faceDatabase.find((f) => f.studentId === studentId)
+    const enrolled = getFaceEnrollment(studentId)
+
+    console.log("[v0] Face match attempt for student:", studentId, "Enrolled:", !!enrolled)
 
     if (!enrolled) {
       return NextResponse.json({
@@ -57,6 +52,7 @@ export async function POST(request: NextRequest) {
       distance: distance.toFixed(3),
       confidence: confidence.toFixed(1),
       matched,
+      threshold,
     })
 
     return NextResponse.json({

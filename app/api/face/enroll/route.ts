@@ -1,7 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { addFaceEnrollment, checkFaceEnrolled } from "@/lib/face-database"
 
 // In-memory store for face data (replace with database in production)
-let faceDatabase: Array<{
+const faceDatabase: Array<{
   studentId: string
   descriptor: number[]
   enrolledAt: string
@@ -16,17 +17,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid face data" }, { status: 400 })
     }
 
-    // Remove old enrollment for this student
-    faceDatabase = faceDatabase.filter((f) => f.studentId !== studentId)
+    addFaceEnrollment(studentId, descriptor)
 
-    // Add new enrollment
-    faceDatabase.push({
-      studentId,
-      descriptor,
-      enrolledAt: new Date().toISOString(),
-    })
-
-    console.log("[v0] Face enrolled for student:", studentId)
+    console.log("[v0] Face enrolled for student:", studentId, "Descriptor length:", descriptor.length)
 
     return NextResponse.json({
       success: true,
@@ -48,16 +41,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Student ID required" }, { status: 400 })
     }
 
-    const enrollment = faceDatabase.find((f) => f.studentId === studentId)
+    const enrolled = checkFaceEnrolled(studentId)
 
-    if (!enrollment) {
-      return NextResponse.json({ enrolled: false })
-    }
+    console.log("[v0] Enrollment check for student:", studentId, "Enrolled:", enrolled)
 
     return NextResponse.json({
-      enrolled: true,
-      studentId: enrollment.studentId,
-      enrolledAt: enrollment.enrolledAt,
+      enrolled,
+      studentId,
     })
   } catch (error) {
     console.error("[v0] Check enrollment error:", error)
