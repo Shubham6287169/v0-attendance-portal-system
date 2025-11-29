@@ -355,19 +355,35 @@ export default function LoginPage() {
                         <AlertDescription>{error}</AlertDescription>
                       </Alert>
                     )}
+                    <Alert className="border-green-500 bg-green-50">
+                      <AlertCircle className="h-4 w-4 text-green-600" />
+                      <AlertDescription className="text-green-800">
+                        <strong>✓ OTP sent successfully!</strong> An OTP has been sent to <strong>{forgotEmail}</strong>
+                        . Please check your registered email inbox.
+                      </AlertDescription>
+                    </Alert>
+                    <p className="text-sm text-muted-foreground">Enter the 6-digit OTP sent to {forgotEmail}</p>
+                    <Alert className="border-blue-500 bg-blue-50">
+                      <AlertCircle className="h-4 w-4 text-blue-600" />
+                      <AlertDescription className="text-blue-800">
+                        <strong>For Testing:</strong> Check the browser console (F12) for the OTP, or open DevTools
+                        Network tab to see the response with testOTP field.
+                      </AlertDescription>
+                    </Alert>
                     <div className="space-y-2">
-                      <Label htmlFor="forgot-email">Registered Email</Label>
+                      <Label htmlFor="otp">Enter OTP</Label>
                       <Input
-                        id="forgot-email"
-                        type="email"
-                        placeholder="student@example.com"
-                        value={forgotEmail}
-                        onChange={(e) => setForgotEmail(e.target.value)}
+                        id="otp"
+                        type="text"
+                        placeholder="000000"
+                        maxLength={6}
+                        value={otp}
+                        onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
                         required
                       />
                     </div>
-                    <Button type="submit" className="w-full" disabled={loading}>
-                      {loading ? "Sending OTP..." : "Send OTP"}
+                    <Button type="submit" className="w-full" disabled={loading || otp.length !== 6}>
+                      {loading ? "Verifying..." : "Verify OTP"}
                     </Button>
                   </form>
                 )}
@@ -380,6 +396,13 @@ export default function LoginPage() {
                         <AlertDescription>{error}</AlertDescription>
                       </Alert>
                     )}
+                    <Alert className="border-green-500 bg-green-50">
+                      <AlertCircle className="h-4 w-4 text-green-600" />
+                      <AlertDescription className="text-green-800">
+                        <strong>✓ OTP sent successfully!</strong> An OTP has been sent to <strong>{forgotEmail}</strong>
+                        . Please check your registered email inbox.
+                      </AlertDescription>
+                    </Alert>
                     <p className="text-sm text-muted-foreground">Enter the 6-digit OTP sent to {forgotEmail}</p>
                     <Alert className="border-blue-500 bg-blue-50">
                       <AlertCircle className="h-4 w-4 text-blue-600" />
