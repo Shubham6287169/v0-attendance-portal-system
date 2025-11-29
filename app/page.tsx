@@ -409,12 +409,6 @@ export default function LoginPage() {
                         required
                       />
                     </div>
-                    <Alert className="border-blue-500 bg-blue-50">
-                      <AlertCircle className="h-4 w-4 text-blue-600" />
-                      <AlertDescription className="text-blue-800 text-sm">
-                        For testing: Check browser console (F12) or Network tab for the OTP.
-                      </AlertDescription>
-                    </Alert>
                     <Button type="submit" className="w-full" disabled={loading || otp.length !== 6}>
                       {loading ? "Verifying..." : "Verify OTP"}
                     </Button>
