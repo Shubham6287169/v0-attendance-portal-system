@@ -74,6 +74,16 @@ export function FaceEnrollment({ studentId, onEnrollmentComplete }: FaceEnrollme
       ctx.drawImage(video, 0, 0)
       const imageBase64 = canvas.toDataURL("image/jpeg", 0.9).split(",")[1]
 
+      if (!imageBase64 || imageBase64.length < 100) {
+        throw new Error("Failed to capture valid image data")
+      }
+
+      console.log("[v0] Image Base64 length:", imageBase64.length)
+      console.log("[v0] Sending enrollment request to API...")
+
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 second timeout
+
       const response = await fetch("/api/face/enroll", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -81,14 +91,26 @@ export function FaceEnrollment({ studentId, onEnrollmentComplete }: FaceEnrollme
           studentId,
           imageData: imageBase64,
         }),
+        signal: controller.signal,
       })
 
-      const result = await response.json()
+      clearTimeout(timeoutId)
+
+      console.log("[v0] API response status:", response.status)
 
       if (!response.ok) {
-        throw new Error(result.error || "Enrollment failed")
+        let errorMessage = "Enrollment failed"
+        try {
+          const result = await response.json()
+          errorMessage = result.error || errorMessage
+          console.log("[v0] API error response:", result)
+        } catch (e) {
+          console.log("[v0] Could not parse error response:", e)
+        }
+        throw new Error(errorMessage)
       }
 
+      const result = await response.json()
       console.log("[v0] Face enrollment successful:", result)
 
       setMessage("Face enrolled successfully!")
@@ -105,8 +127,20 @@ export function FaceEnrollment({ studentId, onEnrollmentComplete }: FaceEnrollme
         onEnrollmentComplete()
       }, 2000)
     } catch (err) {
-      console.log("[v0] Capture error:", err)
-      setError(err instanceof Error ? err.message : "Failed to capture and enroll face")
+      let errorMsg = "Failed to enroll face"
+
+      if (err instanceof Error) {
+        if (err.name === "AbortError") {
+          errorMsg = "Request timeout. Python service may not be running. Please try again."
+        } else if (err.message.includes("Failed to fetch")) {
+          errorMsg = "Network error. Check if Python backend is running at http://localhost:5000"
+        } else {
+          errorMsg = err.message
+        }
+      }
+
+      console.log("[v0] Enrollment error:", err)
+      setError(errorMsg)
     } finally {
       setIsSubmitting(false)
     }
