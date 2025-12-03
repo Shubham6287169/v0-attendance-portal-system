@@ -5,7 +5,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Camera, AlertCircle } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { generateDescriptorFromPixels } from "@/lib/face-recognition-utils"
 
 interface FaceRecognitionProps {
   onFaceDetected: (confidence: number) => void
@@ -92,18 +91,17 @@ export function FaceRecognition({ onFaceDetected, isActive, studentId }: FaceRec
       console.log("[v0] Capturing face - Canvas:", canvas.width, "x", canvas.height)
 
       ctx.drawImage(video, 0, 0)
+      const imageBase64 = canvas.toDataURL("image/jpeg", 0.9).split(",")[1]
 
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-      const descriptor = generateDescriptorFromPixels(imageData.data, canvas.width, canvas.height)
+      console.log("[v0] Image captured and converted to base64")
 
-      console.log("[v0] Face captured - descriptor length:", descriptor.length)
-
+      // Send to Next.js API which forwards to Python backend
       const response = await fetch("/api/face/match", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           studentId,
-          descriptor,
+          imageData: imageBase64,
         }),
       })
 

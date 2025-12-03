@@ -5,7 +5,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Camera, CheckCircle, AlertCircle } from "lucide-react"
-import { generateDescriptorFromPixels } from "@/lib/face-recognition-utils"
 
 interface FaceEnrollmentProps {
   studentId: string
@@ -71,24 +70,16 @@ export function FaceEnrollment({ studentId, onEnrollmentComplete }: FaceEnrollme
       canvas.height = video.videoHeight
 
       console.log("[v0] Canvas dimensions:", canvas.width, "x", canvas.height)
-      console.log("[v0] Video dimensions:", video.videoWidth, "x", video.videoHeight)
 
       ctx.drawImage(video, 0, 0)
-
-      // Get pixel data
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-      console.log("[v0] Image data length:", imageData.data.length)
-
-      // Generate descriptor
-      const descriptor = generateDescriptorFromPixels(imageData.data, canvas.width, canvas.height)
-      console.log("[v0] Generated descriptor length:", descriptor.length)
+      const imageBase64 = canvas.toDataURL("image/jpeg", 0.9).split(",")[1]
 
       const response = await fetch("/api/face/enroll", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           studentId,
-          descriptor,
+          imageData: imageBase64,
         }),
       })
 
