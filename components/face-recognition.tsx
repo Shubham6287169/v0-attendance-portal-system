@@ -91,11 +91,23 @@ export function FaceRecognition({ onFaceDetected, isActive, studentId }: FaceRec
       console.log("[v0] Capturing face - Canvas:", canvas.width, "x", canvas.height)
 
       ctx.drawImage(video, 0, 0)
-      const imageBase64 = canvas.toDataURL("image/jpeg", 0.9).split(",")[1]
+      const dataURL = canvas.toDataURL("image/jpeg", 0.95)
 
-      console.log("[v0] Image captured and converted to base64")
+      if (!dataURL || dataURL.length < 100) {
+        throw new Error("Failed to capture image data")
+      }
 
-      // Send to Next.js API which forwards to Python backend
+      const imageBase64 = dataURL.split(",")[1]
+
+      if (!imageBase64 || imageBase64.length < 100) {
+        console.error("[v0] Base64 extraction failed - length:", imageBase64?.length)
+        throw new Error("Image conversion failed")
+      }
+
+      console.log("[v0] Image captured and converted to base64 - length:", imageBase64.length)
+
+      setInstructionMessage("Processing face...")
+
       const response = await fetch("/api/face/match", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -107,11 +119,12 @@ export function FaceRecognition({ onFaceDetected, isActive, studentId }: FaceRec
 
       const result = await response.json()
 
-      if (!response.ok) {
-        throw new Error(result.error || "Face matching failed")
-      }
-
+      console.log("[v0] Face match response status:", response.status)
       console.log("[v0] Face match result:", result)
+
+      if (!response.ok) {
+        throw new Error(result.error || result.message || "Face matching failed")
+      }
 
       const matchConfidence = result.confidence
       const isValid = result.matched
@@ -129,6 +142,7 @@ export function FaceRecognition({ onFaceDetected, isActive, studentId }: FaceRec
     } catch (err) {
       console.log("[v0] Face capture error:", err)
       setError(err instanceof Error ? err.message : "Error capturing face. Please try again.")
+      setInstructionMessage("Capture failed. Please try again.")
     } finally {
       setIsCapturing(false)
     }
