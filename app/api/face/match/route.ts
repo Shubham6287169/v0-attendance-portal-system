@@ -126,7 +126,11 @@ export async function POST(request: NextRequest) {
       }
 
       const imageHash = Math.abs(hashCode(imageData.substring(0, 500)))
-      const enrolledHash = Math.abs(hashCode(enrolled.descriptor.substring(0, 500)))
+
+      const descriptorStr = Array.isArray(enrolled.descriptor)
+        ? enrolled.descriptor.slice(0, 100).join(",")
+        : String(enrolled.descriptor)
+      const enrolledHash = Math.abs(hashCode(descriptorStr.substring(0, 500)))
 
       // Calculate similarity (0-1 range)
       const maxHash = Math.max(imageHash, enrolledHash)
