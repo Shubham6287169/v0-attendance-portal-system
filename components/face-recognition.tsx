@@ -108,39 +108,68 @@ export function FaceRecognition({ onFaceDetected, isActive, studentId }: FaceRec
 
       setInstructionMessage("Processing face...")
 
-      const response = await fetch("/api/face/match", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          studentId,
-          imageData: imageBase64,
-        }),
-      })
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 35000) // 35 second timeout
 
-      const result = await response.json()
+      try {
+        const response = await fetch("/api/face/match", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            studentId,
+            imageData: imageBase64,
+          }),
+          signal: controller.signal,
+        })
 
-      console.log("[v0] Face match response status:", response.status)
-      console.log("[v0] Face match result:", result)
+        clearTimeout(timeoutId)
 
-      if (!response.ok) {
-        throw new Error(result.error || result.message || "Face matching failed")
-      }
+        console.log("[v0] Face match response status:", response.status)
 
-      const matchConfidence = result.confidence
-      const isValid = result.matched
+        if (!response.ok) {
+          const result = await response.json()
+          console.error("[v0] Face match API error:", result)
+          throw new Error(result.error || result.message || `API error: ${response.status}`)
+        }
 
-      setConfidence(matchConfidence)
-      setFaceDetected(isValid)
-      onFaceDetected(matchConfidence)
+        const result = await response.json()
 
-      if (!isValid) {
-        setError(`${result.message}`)
-        setInstructionMessage("Try again with better lighting and clearer positioning.")
-      } else {
-        setInstructionMessage("✓ Face matched successfully!")
+        console.log("[v0] Face match result:", result)
+        console.log("[v0] Using recognition source:", result.source)
+
+        const matchConfidence = result.confidence
+        const isValid = result.matched
+
+        setConfidence(matchConfidence)
+        setFaceDetected(isValid)
+        onFaceDetected(matchConfidence)
+
+        if (!isValid) {
+          setError(`${result.message}`)
+          setInstructionMessage("Try again with better lighting and clearer positioning.")
+        } else {
+          setInstructionMessage("✓ Face matched successfully!")
+        }
+
+        if (result.warning) {
+          console.warn("[v0] Backend warning:", result.warning)
+        }
+      } catch (err) {
+        clearTimeout(timeoutId)
+
+        if (err instanceof Error && err.name === "AbortError") {
+          console.error("[v0] Face matching timeout after 35 seconds")
+          setError("Face recognition is taking too long. Please check your connection and try again.")
+          setInstructionMessage("Timeout. Ensure Python backend is running or try fallback mode.")
+        } else {
+          console.error("[v0] Fetch error:", err)
+          const errorMsg = err instanceof Error ? err.message : "Network error"
+          setError(`Failed to process face: ${errorMsg}. Please try again.`)
+          setInstructionMessage("Connection error. Check your internet and try again.")
+        }
       }
     } catch (err) {
-      console.log("[v0] Face capture error:", err)
+      console.error("[v0] Face capture error:", err)
       setError(err instanceof Error ? err.message : "Error capturing face. Please try again.")
       setInstructionMessage("Capture failed. Please try again.")
     } finally {
